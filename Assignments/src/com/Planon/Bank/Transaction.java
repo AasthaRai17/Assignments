@@ -7,7 +7,7 @@ enum TransactionType{
 	CREDIT,DEBIT;
 }
 
-public class Transaction implements Comparator{
+public class Transaction{
 	
 	String tId;
 	double tAmount;
@@ -128,19 +128,18 @@ public class Transaction implements Comparator{
 	 * toBeComparedTrasaction.gettDateAndTime().compareTo(this.tDateAndTime); }
 	 */
 
-	@Override
-	public int compare(Object compareObj1, Object compareObj2) {
-		
-		Transaction transaction1 = (Transaction)compareObj1;
-		Transaction transaction2 = (Transaction)compareObj2;
-		
-		int compare1 = transaction1.gettDateAndTime().compareTo(transaction2.gettDateAndTime());
-		int compare2 = transaction1.gettSource().compareToIgnoreCase(transaction2.gettSource());
-		if(compare1==0)
-			return compare2;
-		else
-			return compare1;
-	}
+	/*
+	 * @Override public int compare(Object compareObj1, Object compareObj2) {
+	 * 
+	 * Transaction transaction1 = (Transaction)compareObj1; Transaction transaction2
+	 * = (Transaction)compareObj2;
+	 * 
+	 * int compare1 =
+	 * transaction1.gettDateAndTime().compareTo(transaction2.gettDateAndTime()); int
+	 * compare2 =
+	 * transaction1.gettSource().compareToIgnoreCase(transaction2.gettSource());
+	 * if(compare1==0) return compare2; else return compare1; }
+	 */
 
 	/*
 	 * @Override public boolean equals(Object toCheck) { if(this == toCheck) return
