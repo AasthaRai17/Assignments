@@ -6,6 +6,7 @@ import java.time.LocalDateTime;
 import java.time.Month;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 
 public class ProcessTransaction {
 
@@ -64,7 +65,21 @@ public class ProcessTransaction {
 			transactionList.add(new Transaction("T019",Math.random()*1000, LocalDateTime.of(2018, Month.AUGUST, 24, 11, 45, 12),"S2","S6",TransactionType.DEBIT,0));
 			transactionList.add(new Transaction("T020",Math.random()*1000, LocalDateTime.of(2021, Month.JANUARY, 10, 11, 45, 12),"S2","S6",TransactionType.CREDIT,0));
 			
-			Collections.sort(transactionList, new Transaction("T019",Math.random()*1000, LocalDateTime.of(2018, Month.AUGUST, 24, 11, 45, 12),"S2","S6",TransactionType.DEBIT,0));
+			Collections.sort(transactionList, new Comparator<Transaction>() {
+
+				@Override
+				public int compare(Transaction o1, Transaction o2) {
+					Transaction transaction1 = (Transaction)o1;
+					Transaction transaction2 = (Transaction)o2;
+					
+					int compare1 = transaction1.gettDateAndTime().compareTo(transaction2.gettDateAndTime());
+					int compare2 = transaction1.gettSource().compareToIgnoreCase(transaction2.gettSource());
+					if(compare1==0)
+						return compare2;
+					else
+						return compare1;
+				}
+			});
 			
 		}catch(Exception e) {
 			logger.info("Exception while transaction input: " + e);
