@@ -10,23 +10,43 @@ enum TransactionType{
 public class Transaction{
 	
 	String tId;
-	double tAmount;
 	LocalDateTime tDateAndTime;
 	String tSource;
 	String tDestination;
 	TransactionType tType;
-	double todaysBalance;
+	double tAmount;
+	//double todaysBalance;
+	//double creditSum;
+	//double debitSum;
 	
 	public Transaction(String tId, double tAmount, LocalDateTime tDateAndTime, String tSource, String tDestination,
-			TransactionType tType, double todaysBalance) {
+			TransactionType tType) {
 		this.tId = tId;
 		this.tAmount = tAmount;
 		this.tDateAndTime = tDateAndTime;
 		this.tSource = tSource;
 		this.tDestination = tDestination;
 		this.tType = tType;
-		this.todaysBalance=todaysBalance;
+		//this.todaysBalance = todaysBalance;
+		//this.creditSum = creditSum;
+		//this.debitSum = debitSum;
 	}
+
+	/*public double getCreditSum() {
+		return creditSum;
+	}
+
+	public void setCreditSum(double creditSum) {
+		this.creditSum = creditSum;
+	}
+
+	public double getDebitSum() {
+		return debitSum;
+	}
+
+	public void setDebitSum(double debitSum) {
+		this.debitSum = debitSum;
+	}*/
 
 	public String gettId() {
 		return tId;
@@ -64,12 +84,12 @@ public class Transaction{
 	public void settType(TransactionType tType) {
 		this.tType = tType;
 	}
-	public double getTodaysBalance() {
+	/*public double getTodaysBalance() {
 		return todaysBalance;
 	}
 	public void setTodaysBalance(double todaysBalance) {
 		this.todaysBalance = todaysBalance;
-	}
+	}*/
 	
 	@Override
 	public int hashCode() {
@@ -160,3 +180,4 @@ public class Transaction{
 	
 	
 }
+
