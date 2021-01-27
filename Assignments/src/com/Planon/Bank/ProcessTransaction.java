@@ -120,7 +120,44 @@ public class ProcessTransaction {
 			e.printStackTrace();
 		}
 }
-	
+	private void checkForMonthlyBalance(TreeMap<String, TreeMap<String, Double>> monthEndBalance, Transaction oneTransaction,
+			Map<String, Double> monthlyMap, TreeMap<String, TreeMap<String, Double>> localMapForCalculation) {
+
+		try {
+			String source = oneTransaction.gettSource();
+			TransactionType tType = oneTransaction.gettType();
+			Double amountFromTransaction = oneTransaction.gettAmount();
+			String yearMonthKey = oneTransaction.gettDateAndTime().getYear() + " " + oneTransaction.gettDateAndTime().getMonth(); 
+			
+			
+			if()
+			
+			
+			if(monthEndBalance.containsKey(source)) {
+				TreeMap<String, Double> oneSourceAllMonthsMap = monthEndBalance.get(source);
+				Double amount =0.0;
+				if(oneSourceAllMonthsMap.containsKey(yearMonthKey)) {
+					Double amountFromMonthMap = oneSourceAllMonthsMap.get(yearMonthKey);
+					if(tType.equals(TransactionType.CREDIT)) 
+						amount = amountFromMonthMap+amountFromTransaction;
+					else 
+						amount = amountFromMonthMap-amountFromTransaction;
+					
+				}else {
+					//first entry for a month should be calculated wrt previous months entries as per debit or credit
+					//amount=?
+					
+				}
+				oneSourceAllMonthsMap.put(yearMonthKey, amount);
+				
+			}else {
+				
+			}
+		}catch(Exception e) {
+			logger.info("Exception in checkForMonthlyBalance: " + e);
+			e.printStackTrace();
+		}
+	}
 	
 	/**
 	 * it is to sum all the credit amounts of all unique sources and destination
