@@ -5,6 +5,7 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Scanner;
 import java.util.TreeMap;
+import java.util.function.Consumer;
 import java.util.logging.Logger;
 import java.text.DecimalFormat;
 import java.time.LocalDateTime;
@@ -15,20 +16,78 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.Iterator;
 
-public class ProcessTransaction {
+public class ProcessTransaction implements BankFunctions {
 
 	static List<Transaction> transactionList = new ArrayList<>();
 	static Logger logger = Logger.getLogger(ProcessTransaction.class.getName());
 	private static DecimalFormat df = new DecimalFormat("0.00");
 	BankConstants bankConst = new BankConstants();
-	// take input
-	// sum all credits of all source/destination
-	// get balance sheet for all source/destination
+
+	public void initiateTheBankTransactionProcess() {
+
+		takeInput();
+		sortTheInputData();
+
+		System.out.println("Credit sum===================");
+		getSumOfAllCredits();
+
+		System.out.println("Month end balancesheet===================");
+		// getEachMonthBalance();
+		getEachDayBalance();
+	}
+
+	/**
+	 * function to print sum of all credit of all sources
+	 */
+	private void getSumOfAllCredits() {
+
+		try {
+			Map<String, Double> sumOfAmountOfATransactionType = sumAllCreditsOrDebitsOfEachSource(
+					TransactionType.CREDIT);
+			for (Entry<String, Double> entry : sumOfAmountOfATransactionType.entrySet()) {
+				System.out.println(entry.getKey() + "'s total " + TransactionType.CREDIT + " amount is: "
+						+ df.format(entry.getValue()));
+			}
+		} catch (Exception e) {
+			logger.info("Exception in getSumOfAllCredits: " + e);
+			e.printStackTrace();
+		}
+	}
+
+	/**
+	 * it is to sum all the credit/debit amounts of all unique sources
+	 * 
+	 * @param debitOrCredit can be Debit or Credit, accordingly the sum will be done
+	 */
+	public Map<String, Double> sumAllCreditsOrDebitsOfEachSource(TransactionType debitOrCredit) {
+
+		Map<String, Double> sumOfAmountOfATransactionType = new TreeMap<>();
+
+		try {
+
+			transactionList.stream().filter(oneTransaction -> (oneTransaction.gettType().equals(debitOrCredit)))
+					.forEach(oneT -> {
+						double amount = oneT.gettAmount();
+
+						// if there is an existing amount entry for the source adding up the amount
+						if (sumOfAmountOfATransactionType.containsKey(oneT.getCustomerId()))
+							amount += sumOfAmountOfATransactionType.get(oneT.getCustomerId());
+
+						// if the first entry directly put the amount value
+						sumOfAmountOfATransactionType.put(oneT.getCustomerId(), amount);
+					});
+
+		} catch (Exception e) {
+			logger.info("Exception in sumAllCreditsOrDebitsOfEachSource: " + e);
+			e.printStackTrace();
+		}
+		return sumOfAmountOfATransactionType;
+	}
 
 	/**
 	 * Function will calculate the month end balance of all sources
 	 */
-	private void getEachMonthBalance() {
+	public void getEachMonthBalance() {
 		try {
 			// <S1,<Jan2011, 12568>>
 			TreeMap<String, TreeMap<String, Double>> monthEndBalance = new TreeMap<>();
@@ -37,16 +96,7 @@ public class ProcessTransaction {
 				checkForMonthlyBalance(monthEndBalance, oneTransaction);
 			});
 
-			// printing the details
-			Map<String, Double> monthMap = new HashMap<>();
-			for (Entry<String, TreeMap<String, Double>> entry : monthEndBalance.entrySet()) {
-				System.out.println(entry.getKey() + ": ");
-				monthMap = monthEndBalance.get(entry.getKey());
-
-				for (Entry<String, Double> entry1 : monthMap.entrySet()) {
-					System.out.println(entry1.getKey() + "::::: " + df.format(entry1.getValue()));
-				}
-			}
+			printMonthEndBalanceSheet(monthEndBalance);
 
 		} catch (Exception e) {
 			logger.info("Exception in getEachDayBalance: " + e);
@@ -54,14 +104,32 @@ public class ProcessTransaction {
 		}
 	}
 
-	
-	
+	/**
+	 * function to just the print the month end balance sheet
+	 * 
+	 * @param monthEndBalance
+	 */
+	private void printMonthEndBalanceSheet(TreeMap<String, TreeMap<String, Double>> monthEndBalance) {
+		// printing the details
+		Map<String, Double> monthMap = new HashMap<>();
+		for (Entry<String, TreeMap<String, Double>> entry : monthEndBalance.entrySet()) {
+			System.out.println(entry.getKey() + ": ");
+			monthMap = monthEndBalance.get(entry.getKey());
+
+			for (Entry<String, Double> entry1 : monthMap.entrySet()) {
+				System.out.println(entry1.getKey() + "::::: " + df.format(entry1.getValue()));
+			}
+		}
+	}
+
 	/**
 	 * function to calculate monthly balancesheet
+	 * 
 	 * @param monthEndBalance is a map for the balances <Source1, <July 2018, 6000>>
-	 * @param oneTransaction is one transaction form the list of transactions
+	 * @param oneTransaction  is one transaction form the list of transactions
 	 */
-	private void checkForMonthlyBalance(TreeMap<String, TreeMap<String, Double>> monthEndBalance, Transaction oneTransaction) {
+	private void checkForMonthlyBalance(TreeMap<String, TreeMap<String, Double>> monthEndBalance,
+			Transaction oneTransaction) {
 
 		try {
 			String source = oneTransaction.getCustomerId();
@@ -69,35 +137,33 @@ public class ProcessTransaction {
 			Double amountFromTransaction = oneTransaction.gettAmount();
 			String yearMonthKey = oneTransaction.gettDateAndTime().getYear() + " "
 					+ oneTransaction.gettDateAndTime().getMonth();
-			//2018 July
+			// 2018 July
 			Double amount;
 
-			//if my map already has the source then getting value from the map
+			// if my map already has the source then getting value from the map
 			if (monthEndBalance.containsKey(source)) {
 				TreeMap<String, Double> oneSourceAllMonthsMap = monthEndBalance.get(source);
 
 				if (oneSourceAllMonthsMap.containsKey(yearMonthKey)) {
 					Double amountFromMonthMap = oneSourceAllMonthsMap.get(yearMonthKey);
-					
-					amount = tType.equals(TransactionType.CREDIT) ? 
-						amountFromMonthMap + amountFromTransaction : 
-						amountFromMonthMap - amountFromTransaction;
 
-				} else {//if a new month entry is being added
+					amount = tType.equals(TransactionType.CREDIT) ? amountFromMonthMap + amountFromTransaction
+							: amountFromMonthMap - amountFromTransaction;
+
+				} else {// if a new month entry is being added
 					// first entry for a month should be calculated wrt previous months entries as
-					// per debit or credit so using the last entry's amount value as the map is sorted
+					// per debit or credit so using the last entry's amount value as the map is
+					// sorted
 					// amount=?
-					amount = tType.equals(TransactionType.CREDIT) ? 
-							amountFromTransaction + oneSourceAllMonthsMap.lastEntry().getValue() : 
-							oneSourceAllMonthsMap.lastEntry().getValue() - amountFromTransaction;
+					amount = tType.equals(TransactionType.CREDIT)
+							? amountFromTransaction + oneSourceAllMonthsMap.lastEntry().getValue()
+							: oneSourceAllMonthsMap.lastEntry().getValue() - amountFromTransaction;
 				}
 				oneSourceAllMonthsMap.put(yearMonthKey, amount);
 
-			} else {//if map doesnt has the source adding a new map with the source
-				amount = tType.equals(TransactionType.CREDIT) ? 
-						amountFromTransaction : 
-						-amountFromTransaction;
-				
+			} else {// if map doesnt has the source adding a new map with the source
+				amount = tType.equals(TransactionType.CREDIT) ? amountFromTransaction : -amountFromTransaction;
+
 				TreeMap<String, Double> oneSourceAllMonthsMap = new TreeMap<>();
 				oneSourceAllMonthsMap.put(yearMonthKey, amount);
 				monthEndBalance.put(source, oneSourceAllMonthsMap);
@@ -108,40 +174,116 @@ public class ProcessTransaction {
 		}
 	}
 
-	/**
-	 * it is to sum all the credit amounts of all unique sources and destination
-	 */
-	private void sumAllCreditsOfEachSource() {
+	
 
-		Map<String, Double> allCredits = new TreeMap<>();
+	@Override
+	public void getQuaterlyInteresetOfAnAccount() {
+		TreeMap<String, TreeMap<String, TreeMap<String, TreeMap<String, Double>>>> eachDayBalance = getEachDayBalance();
+		
+	}
+
+	private TreeMap<String, TreeMap<String, TreeMap<String, TreeMap<String, Double>>>> getEachDayBalance() {
+		TreeMap<String, TreeMap<String, TreeMap<String, TreeMap<String, Double>>>> eachDayBalance = new TreeMap<>();
 		try {
-
-			transactionList.stream()
-					.filter(oneTransaction -> (oneTransaction.gettType().equals(TransactionType.CREDIT)))
-					.forEach(oneT -> {
-						if (allCredits.containsKey(oneT.getCustomerId())) {
-							allCredits.put(oneT.getCustomerId(), (allCredits.get(oneT.getCustomerId())+oneT.gettAmount()));
-						} else {
-							allCredits.put(oneT.getCustomerId(), oneT.gettAmount());
-						}
-					});
-
-			for (Entry<String, Double> entry : allCredits.entrySet()) {
-				System.out.println(entry.getKey() + "'s total credit amount is: " + df.format(entry.getValue()));
-			}
+			// calculating each day's balance
+			// <S1,<2012,<January, <18, 12000>>>> format data in eachDayBalance
+			transactionList.forEach(oneTransaction -> getEachDayBalanceMap(eachDayBalance, oneTransaction));
 
 		} catch (Exception e) {
-			logger.info("Exception in sumAllCreditsOfEachSource: " + e);
+			logger.info("Exception in getEachDayBalance: " + e);
+			e.printStackTrace();
+		}
+		return eachDayBalance;
+	}
+
+	/**
+	 * 
+	 * @param eachDayBalance <S1,<2012,<January, <18, 12000>>>>
+	 */
+	private void getAvgBalanceQuaterly(TreeMap<String, TreeMap<String, TreeMap<String, TreeMap<String, Double>>>> eachDayBalance) {
+		String year = "", sourceId = "";
+		TreeMap<String, TreeMap<String, TreeMap<String, Double>>> oneYearMap = new TreeMap<>();
+		TreeMap<String, TreeMap<String, Double>> oneMonthMap = new TreeMap<>();
+		try {
+			for(Map.Entry<String, TreeMap<String, TreeMap<String, TreeMap<String, Double>>>> oneSourceData : eachDayBalance.entrySet()) {
+				sourceId = oneSourceData.getKey();
+				oneYearMap = oneSourceData.getValue();
+				
+				for(Map.Entry<String, TreeMap<String, TreeMap<String, Double>>> oneYearData : oneYearMap.entrySet()) {
+					year = oneYearData.getKey();
+					oneMonthMap= oneYearData.getValue();
+					
+				}
+			}
+		} catch (Exception e) {
+			logger.info("Exception in getAvgBalanceQuaterly: " + e);
 			e.printStackTrace();
 		}
 	}
 
-	public void initiateTheBankTransactionProcess() {
-		takeInput();
-		System.out.println("Credit sum===================");
-		sumAllCreditsOfEachSource();
-		System.out.println("Month end balancesheet===================");
-		getEachMonthBalance();
+	boolean checkLeapYear(int year) {
+		return (((year % 4 == 0) && (year % 100 != 0)) || (year % 400 == 0));
+	}
+	/**
+	 * eachday balancesheet is being created in form of <SourceId, <Year, <January,
+	 * <19, Amount>>>>
+	 * 
+	 * @param eachDayBalance
+	 * @param oneTransaction
+	 */
+	private TreeMap<String, TreeMap<String, TreeMap<String, TreeMap<String, Double>>>> getEachDayBalanceMap(
+			TreeMap<String, TreeMap<String, TreeMap<String, TreeMap<String, Double>>>> eachDayBalance,
+			Transaction oneTransaction) {
+		try {
+			String year = String.valueOf(oneTransaction.gettDateAndTime().getYear());
+			String month = oneTransaction.gettDateAndTime().getMonth().toString();
+			String date = String.valueOf(oneTransaction.gettDateAndTime().getDayOfMonth());
+			String sourcId = oneTransaction.gettSource();
+			double amount = (oneTransaction.gettType().equals(TransactionType.CREDIT)) ? oneTransaction.gettAmount()
+					: -oneTransaction.gettAmount();
+
+			if (eachDayBalance.containsKey(sourcId)) {
+				if (eachDayBalance.get(sourcId).containsKey(year)) {
+					if (eachDayBalance.get(sourcId).get(year).containsKey(month)) {
+						if (eachDayBalance.get(sourcId).get(year).get(month).containsKey(date))
+							amount += eachDayBalance.get(sourcId).get(year).get(month).get(date);
+						else {
+							// if a date's entry is for the first time, opening balance will be the closing
+							// balance of previous date
+							// getting last key's value which is previous day's balance amount
+							// amount += lastAmountEntryForOneSource;
+							amount += eachDayBalance.get(sourcId).get(year).get(month).lastEntry().getValue();
+						}
+						eachDayBalance.get(sourcId).get(year).get(month).put(date, amount);
+					} else {
+						TreeMap<String, Double> tempMap1 = new TreeMap<>();
+						// amount += lastAmountEntryForOneSource;
+						tempMap1.put(date, amount);
+						eachDayBalance.get(sourcId).get(year).put(month, tempMap1);
+					}
+				} else {
+					TreeMap<String, TreeMap<String, Double>> tempMap = new TreeMap<>();
+					TreeMap<String, Double> tempMap1 = new TreeMap<>();
+					// amount += lastAmountEntryForOneSource;
+					tempMap1.put(date, amount);
+					tempMap.put(month, tempMap1);
+					eachDayBalance.get(sourcId).put(year, tempMap);
+				}
+			} else {
+				TreeMap<String, TreeMap<String, TreeMap<String, Double>>> tempMap2 = new TreeMap<>();
+				TreeMap<String, TreeMap<String, Double>> tempMap = new TreeMap<>();
+				TreeMap<String, Double> tempMap1 = new TreeMap<>();
+				tempMap1.put(date, amount);
+				tempMap.put(month, tempMap1);
+				tempMap2.put(year, tempMap);
+				eachDayBalance.put(sourcId, tempMap2);
+			}
+			// lastAmountEntryForOneSource = amount;
+		} catch (Exception e) {
+			logger.info("Exception in getEachDayBalanceMap: " + e);
+			e.printStackTrace();
+		}
+		return eachDayBalance;
 	}
 
 	/**
@@ -149,75 +291,94 @@ public class ProcessTransaction {
 	 */
 	private void takeInput() {
 		try {
-			transactionList.add(new Transaction("T001", Math.random() * 1000,
-					LocalDateTime.of(2015, Month.JULY, 29, 19, 30, 34), "S1", "S2", TransactionType.DEBIT, bankConst.SAVING_ACCOUNT));
-			transactionList.add(new Transaction("T002", Math.random() * 1000,
-					LocalDateTime.of(2016, Month.JULY, 21, 11, 22, 23), "S1", "S2", TransactionType.DEBIT, bankConst.SAVING_ACCOUNT));
-			transactionList.add(new Transaction("T003", Math.random() * 1000,
-					LocalDateTime.of(2017, Month.AUGUST, 1, 10, 45, 12), "S1", "S2", TransactionType.CREDIT, bankConst.SAVING_ACCOUNT));
-			transactionList.add(new Transaction("T004", Math.random() * 1000,
-					LocalDateTime.of(2018, Month.AUGUST, 6, 16, 34, 45), "S1", "S2", TransactionType.DEBIT, bankConst.SAVING_ACCOUNT));
-			transactionList.add(new Transaction("T005", Math.random() * 1000,
-					LocalDateTime.of(2019, Month.JANUARY, 27, 21, 21, 12), "S1", "S2", TransactionType.CREDIT, bankConst.SAVING_ACCOUNT));
-			
-			transactionList.add(new Transaction("T006", Math.random() * 1000,
-					LocalDateTime.of(2015, Month.JULY, 29, 19, 30, 34), "S2", "S1", TransactionType.CREDIT, bankConst.CURRENT_ACCOUNT));
-			transactionList.add(new Transaction("T007", Math.random() * 1000,
-					LocalDateTime.of(2016, Month.JULY, 21, 11, 22, 23), "S2", "S1", TransactionType.CREDIT, bankConst.CURRENT_ACCOUNT));
-			transactionList.add(new Transaction("T008", Math.random() * 1000,
-					LocalDateTime.of(2017, Month.AUGUST, 1, 10, 45, 12), "S2", "S1", TransactionType.DEBIT, bankConst.CURRENT_ACCOUNT));
-			transactionList.add(new Transaction("T009", Math.random() * 1000,
-					LocalDateTime.of(2018, Month.AUGUST, 6, 16, 34, 45), "S2", "S1", TransactionType.CREDIT, bankConst.CURRENT_ACCOUNT));
-			transactionList.add(new Transaction("T010", Math.random() * 1000,
-					LocalDateTime.of(2019, Month.JANUARY, 27, 21, 21, 12), "S2", "S1", TransactionType.DEBIT, bankConst.CURRENT_ACCOUNT));
+			transactionList.add(new Transaction("T001", 100, LocalDateTime.of(2015, Month.JULY, 29, 19, 30, 34), "S1",
+					"S2", TransactionType.DEBIT, bankConst.SAVING_ACCOUNT));
+			transactionList.add(new Transaction("T002", 200, LocalDateTime.of(2015, Month.JULY, 15, 11, 22, 23), "S1",
+					"S2", TransactionType.DEBIT, bankConst.SAVING_ACCOUNT));
+			transactionList.add(new Transaction("T003", 456, LocalDateTime.of(2015, Month.JULY, 29, 10, 45, 12), "S1",
+					"S2", TransactionType.CREDIT, bankConst.SAVING_ACCOUNT));
+			transactionList.add(new Transaction("T004", 234, LocalDateTime.of(2018, Month.AUGUST, 6, 16, 34, 45), "S1",
+					"S2", TransactionType.DEBIT, bankConst.SAVING_ACCOUNT));
+			transactionList.add(new Transaction("T005", 678, LocalDateTime.of(2019, Month.JANUARY, 27, 21, 21, 12),
+					"S1", "S2", TransactionType.CREDIT, bankConst.SAVING_ACCOUNT));
 
-			transactionList.add(new Transaction("T011", Math.random() * 1000,
-					LocalDateTime.of(2015, Month.JULY, 29, 19, 30, 34), "S2", "S1", TransactionType.DEBIT, bankConst.CURRENT_ACCOUNT));
-			transactionList.add(new Transaction("T012", Math.random() * 1000,
-					LocalDateTime.of(2016, Month.AUGUST, 21, 11, 22, 23), "S2", "S3", TransactionType.CREDIT, bankConst.CURRENT_ACCOUNT));
-			transactionList.add(new Transaction("T013", Math.random() * 1000,
-					LocalDateTime.of(2012, Month.JULY, 1, 10, 45, 12), "S2", "S1", TransactionType.DEBIT, bankConst.CURRENT_ACCOUNT));
-			transactionList.add(new Transaction("T014", Math.random() * 1000,
-					LocalDateTime.of(2013, Month.AUGUST, 3, 23, 45, 12), "S2", "S1", TransactionType.CREDIT, bankConst.CURRENT_ACCOUNT));
-			transactionList.add(new Transaction("T015", Math.random() * 1000,
-					LocalDateTime.of(2014, Month.MARCH, 1, 11, 45, 12), "S2", "S3", TransactionType.DEBIT, bankConst.CURRENT_ACCOUNT));
-			
-			transactionList.add(new Transaction("T016", Math.random() * 1000,
-					LocalDateTime.of(2015, Month.JULY, 29, 19, 30, 34), "S1", "S2", TransactionType.CREDIT, bankConst.SAVING_ACCOUNT));
-			transactionList.add(new Transaction("T017", Math.random() * 1000,
-					LocalDateTime.of(2016, Month.AUGUST, 21, 11, 22, 23), "S3", "S2", TransactionType.DEBIT, bankConst.FIXED_ACCOUNT));
-			transactionList.add(new Transaction("T018", Math.random() * 1000,
-					LocalDateTime.of(2012, Month.JULY, 1, 10, 45, 12), "S1", "S2", TransactionType.CREDIT, bankConst.SAVING_ACCOUNT));
-			transactionList.add(new Transaction("T019", Math.random() * 1000,
-					LocalDateTime.of(2013, Month.AUGUST, 3, 23, 45, 12), "S1", "S2", TransactionType.DEBIT, bankConst.SAVING_ACCOUNT));
-			transactionList.add(new Transaction("T020", Math.random() * 1000,
-					LocalDateTime.of(2014, Month.MARCH, 1, 11, 45, 12), "S3", "S2", TransactionType.CREDIT, bankConst.FIXED_ACCOUNT));
+			/*
+			 * transactionList.add(new Transaction("T006", 100, LocalDateTime.of(2015,
+			 * Month.JULY, 29, 19, 30, 34), "S2", "S1", TransactionType.CREDIT,
+			 * bankConst.CURRENT_ACCOUNT)); transactionList.add(new Transaction("T007", 200,
+			 * LocalDateTime.of(2015, Month.JULY, 15, 11, 22, 23), "S2", "S1",
+			 * TransactionType.CREDIT, bankConst.CURRENT_ACCOUNT)); transactionList.add(new
+			 * Transaction("T008", 456, LocalDateTime.of(2015, Month.JULY, 29, 10, 45, 12),
+			 * "S2", "S1", TransactionType.DEBIT, bankConst.CURRENT_ACCOUNT));
+			 * transactionList.add(new Transaction("T009", 234, LocalDateTime.of(2018,
+			 * Month.AUGUST, 6, 16, 34, 45), "S2", "S1", TransactionType.CREDIT,
+			 * bankConst.CURRENT_ACCOUNT)); transactionList.add(new Transaction("T010", 678,
+			 * LocalDateTime.of(2019, Month.JANUARY, 27, 21, 21, 12), "S2", "S1",
+			 * TransactionType.DEBIT, bankConst.CURRENT_ACCOUNT));
+			 */
 
-			Collections.sort(transactionList, new Comparator<Transaction>() {// Anonymous class created
-				// compare function overridden
+			/*
+			 * transactionList.add(new Transaction("T011", 600, LocalDateTime.of(2015,
+			 * Month.JULY, 29, 19, 30, 34), "S2", "S1", TransactionType.DEBIT,
+			 * bankConst.CURRENT_ACCOUNT)); transactionList.add(new Transaction("T012", 456,
+			 * LocalDateTime.of(2016, Month.AUGUST, 21, 11, 22, 23), "S2", "S3",
+			 * TransactionType.CREDIT, bankConst.CURRENT_ACCOUNT)); transactionList.add(new
+			 * Transaction("T013", 890, LocalDateTime.of(2012, Month.JULY, 1, 10, 45, 12),
+			 * "S2", "S1", TransactionType.DEBIT, bankConst.CURRENT_ACCOUNT));
+			 * transactionList.add(new Transaction("T014", 234, LocalDateTime.of(2013,
+			 * Month.AUGUST, 3, 23, 45, 12), "S2", "S1", TransactionType.CREDIT,
+			 * bankConst.CURRENT_ACCOUNT)); transactionList.add(new Transaction("T015", 435,
+			 * LocalDateTime.of(2014, Month.MARCH, 1, 11, 45, 12), "S2", "S3",
+			 * TransactionType.DEBIT, bankConst.CURRENT_ACCOUNT));
+			 */
 
-				@Override
-				public int compare(Transaction o1, Transaction o2) {
-					Transaction transaction1 = (Transaction) o1;
-					Transaction transaction2 = (Transaction) o2;
-
-					int compare1 = transaction1.gettDateAndTime().compareTo(transaction2.gettDateAndTime());
-					int compare2 = transaction1.gettSource().compareToIgnoreCase(transaction2.gettSource());
-					if (compare1 == 0)
-						return compare2;
-					else
-						return compare1;
-				}
-			});
-
-			transactionList.forEach(trans -> System.out
-					.println(trans.gettSource() + " || " + df.format(trans.gettAmount()) + " || " + trans.gettType()
-							+ " || " + trans.gettDateAndTime().getMonth() + " " + trans.gettDateAndTime().getYear()));
+			transactionList.add(new Transaction("T016", 600, LocalDateTime.of(2015, Month.JULY, 29, 19, 30, 34), "S1",
+					"S2", TransactionType.CREDIT, bankConst.SAVING_ACCOUNT));
+			/*
+			 * transactionList.add(new Transaction("T017", 456, LocalDateTime.of(2016,
+			 * Month.AUGUST, 21, 11, 22, 23), "S3", "S2", TransactionType.DEBIT,
+			 * bankConst.FIXED_ACCOUNT));
+			 */
+			transactionList.add(new Transaction("T018", 890, LocalDateTime.of(2012, Month.JULY, 1, 10, 45, 12), "S1",
+					"S2", TransactionType.CREDIT, bankConst.SAVING_ACCOUNT));
+			transactionList.add(new Transaction("T019", 234, LocalDateTime.of(2013, Month.AUGUST, 3, 23, 45, 12), "S1",
+					"S2", TransactionType.DEBIT, bankConst.SAVING_ACCOUNT));
+			/*
+			 * transactionList.add(new Transaction("T020", 435, LocalDateTime.of(2014,
+			 * Month.MARCH, 1, 11, 45, 12), "S3", "S2", TransactionType.CREDIT,
+			 * bankConst.FIXED_ACCOUNT));
+			 */
 
 		} catch (Exception e) {
 			logger.info("Exception while transaction input: " + e);
 			e.printStackTrace();
 		}
+	}
+
+	/**
+	 * Sorting the input on the basis of date and then source id
+	 */
+	private void sortTheInputData() {
+		Collections.sort(transactionList, new Comparator<Transaction>() {// Anonymous class created
+			// compare function overridden
+
+			@Override
+			public int compare(Transaction o1, Transaction o2) {
+				Transaction transaction1 = (Transaction) o1;
+				Transaction transaction2 = (Transaction) o2;
+
+				int compare1 = transaction1.gettDateAndTime().compareTo(transaction2.gettDateAndTime());
+				int compare2 = transaction1.gettSource().compareToIgnoreCase(transaction2.gettSource());
+				if (compare1 == 0)
+					return compare2;
+				else
+					return compare1;
+			}
+		});
+
+		transactionList.forEach(trans -> System.out
+				.println(trans.gettSource() + " || " + df.format(trans.gettAmount()) + " || " + trans.gettType()
+						+ " || " + trans.gettDateAndTime().getMonth() + " " + trans.gettDateAndTime().getYear()));
 	}
 
 }
