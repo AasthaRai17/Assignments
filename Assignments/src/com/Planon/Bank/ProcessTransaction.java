@@ -3,11 +3,10 @@ package com.Planon.Bank;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
-import java.util.Scanner;
-import java.util.Set;
 import java.util.TreeMap;
-import java.util.function.Consumer;
 import java.util.logging.Logger;
+
+import org.json.simple.*;
 
 import java.text.DecimalFormat;
 import java.time.LocalDateTime;
@@ -16,7 +15,6 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
-import java.util.Iterator;
 
 public class ProcessTransaction implements BankFunctions {
 
@@ -199,7 +197,8 @@ public class ProcessTransaction implements BankFunctions {
 			transactionList.forEach(oneTransaction -> {
 				
 				String quarter = bankConst.MONTH_QUARTER_MAP.get(oneTransaction.gettDateAndTime().getMonth().toString());
-						
+				
+				//S1 Q1 2012 Fixed Account
 				String quarterKey = oneTransaction.gettSource() + " " + quarter + " "
 						+ oneTransaction.gettDateAndTime().getYear() + " " + oneTransaction.getAccountType();
 				
@@ -238,19 +237,37 @@ public class ProcessTransaction implements BankFunctions {
 					numberOfDays= bankConst.QUARTER_DAYS_MAP_NON_LEAP.get(quarterKey.split(" ")[1]);
 				
 				AccountType accountType = AccountTypeFactory.getAccountType(quarterKey.split(" ")[3] + " " + quarterKey.split(" ")[4]);
-				String quarterSourceKey = quarterKey.split(" ")[2] 
+				String quarterIntKey = quarterKey.split(" ")[2] 
 						+ " " + quarterKey.split(" ")[1] 
 						+ " " + quarterKey.split(" ")[0];
-				avgQuarterBalanceMap.put(quarterSourceKey, 
+				avgQuarterBalanceMap.put(quarterIntKey, 
 						BankFunctions.calculateInterest((balance/numberOfDays), 
 								accountType.getInterestRate()));
 			});
-				System.out.println(avgQuarterBalanceMap);
+			printQuarterInterestMap(avgQuarterBalanceMap);
 		}catch(Exception e) {
 			logger.info("Exception in checkForMonthlyBalance: " + e);
 			e.printStackTrace();
 		}
 	
+	}
+
+	private void printQuarterInterestMap(TreeMap<String, Double> avgQuarterBalanceMap) {
+		try {
+			avgQuarterBalanceMap.entrySet().forEach(oneEntry -> {
+				System.out.println(oneEntry.getKey().split(" ")[2] 
+						+ "'s "
+						+ oneEntry.getKey().split(" ")[1] 
+						+ " "
+						+ oneEntry.getKey().split(" ")[0]
+						+ " "
+						+ " interest is : "
+						+ df.format(oneEntry.getValue()));
+			});
+		}catch(Exception e) {
+			logger.info("Exception in printQuarterInterestMap: " + e);
+			e.printStackTrace();
+		}
 	}
 
 	boolean checkLeapYear(int year) {
@@ -314,6 +331,90 @@ public class ProcessTransaction implements BankFunctions {
 		System.out.println(eachDayBalance);
 		return eachDayBalance;
 	}
+	
+	
+	/**
+	 * 
+	 * @param identifierMap will contain parameters to specify what time period data to get
+	 * eg: identifierMap.put("GetData","Quaterly");identifierMap.put("TimePeriod","Q1");identifierMap.put("Year","2011");identifierMap.put("SourceId","S1");
+	 * eg: identifierMap.put("GetData","Yearly");identifierMap.put("TimePeriod","2012");identifierMap.put("SourceId","S1");
+	 * eg: identifierMap.put("GetData","Monthly");identifierMap.put("TimePeriod","JULY");identifierMap.put("SourceId","S1");identifierMap.put("Year","2011");
+	 * eg: identifierMap.put("GetData","Source");identifierMap.put("SourceId","S1");
+	 * @return 
+	 */
+	public Object getDataForASpecificPeriod(HashMap<String, String> identifierMap) {
+		
+		TreeMap<String, TreeMap<String, TreeMap<String, TreeMap<String, Double>>>> returnObjet = new TreeMap<>();
+		try {
+			//<S1,<2012,<January, <18, 12000>>>>
+			TreeMap<String, TreeMap<String, TreeMap<String, TreeMap<String, Double>>>> eachDayBalance = getEachDayBalance();
+			String getDataType = identifierMap.get("GetData");
+			
+			if(getDataType.equalsIgnoreCase("Source")) {
+				if(null != identifierMap.get("SourceId"))
+					return eachDayBalance.get(identifierMap.get("SourceId"));
+			}else if(getDataType.equalsIgnoreCase("Yearly")) {
+				if(null != identifierMap.get("SourceId") && null != identifierMap.get("TimePeriod")) {
+					return eachDayBalance.get(identifierMap.get("SourceId"))
+							.get(identifierMap.get("TimePeriod"));
+				}
+			}else if(getDataType.equalsIgnoreCase("Monthly")) {
+				if(null != identifierMap.get("SourceId") 
+						&& null != identifierMap.get("TimePeriod")
+						&& null !=identifierMap.get("Year")) {
+					return eachDayBalance.get(identifierMap.get("SourceId"))
+							.get(identifierMap.get("Year"))
+							.get(identifierMap.get("TimePeriod"));
+				}
+			}else if(getDataType.equalsIgnoreCase("Quaterly")) {
+				if(null != identifierMap.get("SourceId") 
+						&& null != identifierMap.get("TimePeriod")
+						&& null !=identifierMap.get("Year")) {
+					
+					
+				}
+			}
+			eachDayBalance.entrySet().forEach(oneEntrySet -> {
+				if(identifierMap.get("GetData").equalsIgnoreCase("Quaterly")) {
+					
+				}
+			});
+		}catch(Exception e) {
+			logger.info("Exception in getQuaterlyInteresetOfAnAccount: " + e);
+			e.printStackTrace();
+		}
+		return returnObjet;
+		
+	}
+	
+	
+	private Object returnSpecificMonthBalanceSheet(TreeMap<String, TreeMap<String, TreeMap<String, TreeMap<String, Double>>>> eachDayBalance,
+			HashMap<String, Object> identifierMap) {
+		TreeMap<String, TreeMap<String, TreeMap<String, TreeMap<String, Double>>>> returnMap = new TreeMap<>();
+		List<TreeMap<String, TreeMap<String, TreeMap<String, TreeMap<String, Double>>>>> listOfMonthMaps = new ArrayList<>();
+		TreeMap<String, TreeMap<String, TreeMap<String, TreeMap<String, Double>>>> monthFilterMap = new TreeMap<>();
+		try {
+			
+			//loop for months
+			//create map with month key and map as value
+			eachDayBalance.get(identifierMap.get("SourceId").toString())
+			.get(identifierMap.get("Year").toString()).forEach((month, monthsMap) -> {
+				if(((List<String>)identifierMap.get("Months")).contains(month)) {
+							/*
+							 * monthFilterMap.put(identifierMap.get("SourceId").toString() ,
+							 * eachDayBalance.get(identifierMap.get("SourceId").toString()).get(
+							 * identifierMap.get("Year").toString())) listOfMonthMaps.add(e)
+							 */
+				}
+			});
+					
+		}catch(Exception e) {
+			logger.info("Exception in returnSpecificMonthBalanceSheet: " + e);
+			e.printStackTrace();
+		}
+		return returnMap;
+	}
+	
 	
 	/**
 	 * function to take input
