@@ -82,4 +82,15 @@ public class ValidationFunctions {
         return m.matches(); 
 		
 	}
+	
+	public static String getStringValue(Object o) {
+		if(null != o)
+			return o.toString();
+		else
+			return "";
+	}
+	
+	public static boolean isValidstring(Object s) {
+		return (null != s && s.toString().replace(" ", "").length() > 0);
+	}
 }
